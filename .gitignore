@@ -17,6 +17,11 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
+#hide files ending in .private
+*.private
+*.priv
+
+
 # =========================
 # Operating System Files
 # =========================
