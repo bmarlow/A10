@@ -1,4 +1,14 @@
-﻿##Version 0.91
+﻿#title           :Convert_IOSZBF_DCFW.ps1
+#description     :This script will take an IOS configuration using ZBF and convert it to the appropriate A10 config
+#author		     :Brandon Marlow
+#date            :05/17/2016
+#version         :.9
+#usage		     :Convert_IOSZBF_DCFW.ps1 -file [IOS config] >> OUTPUTFILENAME.txt
+#==============================================================================
+
+#get the params
+
+##Version 0.91
 
 Param(
    [Parameter(Mandatory=$True,Position=1)]
@@ -7,6 +17,9 @@ Param(
 #   [Parameter(Mandatory=$True,Position=1)]
 #   [string[]]$portdictionary,
    
+
+#####
+##The next two params are ghetto hacks until we make this more robust
    [Parameter(Mandatory=$True,Position=1)]
    [string[]]$srczone,
 
