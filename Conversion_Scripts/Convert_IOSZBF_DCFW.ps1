@@ -1,4 +1,5 @@
-﻿Param(
+﻿##Version 0.9
+Param(
    [Parameter(Mandatory=$True,Position=1)]
    [string[]]$file,
 
