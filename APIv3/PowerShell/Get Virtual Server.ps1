@@ -23,4 +23,5 @@ $apipath = "/axapi/v3/slb/virtual-server/$name"
 . ".\auth.ps1" $adc
 
 #send the request to get the config for the virtual server
-Invoke-WebRequest -Uri $adc$apipath -ContentType application/json -Headers $headers -Method Get    
+$output = Invoke-WebRequest -Uri $adc$apipath -ContentType application/json -Headers $headers -Method Get    
+Write-Host $output

@@ -14,8 +14,8 @@ if(-not($adc)) { Throw "You must specify an ADC as the first argument" }
 
 
 #set username and pass
-$username = "admin"
-$pass = "a10"
+$username = "rouser"
+$pass = "changeme"
 
 #build the json body
 $body = @"
@@ -24,13 +24,11 @@ $body = @"
 
 
 #authenticate
-$auth = Invoke-WebRequest -Uri $adc/axapi/v3/auth -Body $body -ContentType application/json -Method Post
-#mark content as our JSON
-$json = $auth.Content 
-#convert our JSON to powershell objects
-$nonjson = $json | convertfrom-json 
-#extract our signature/authentication
-$signature = $nonjson.authresponse.signature
+$auth = Invoke-RestMethod -Uri $adc/axapi/v3/auth -Body $body -ContentType application/json -Method Post
+
+
+#extract the signature
+$signature = $auth.authresponse.signature
 
 #set the authentication headers for future API requests
 $headers = @{ Authorization= "A10 $signature" }

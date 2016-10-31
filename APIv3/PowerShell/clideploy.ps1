@@ -49,10 +49,10 @@ $body = @"
 Write-Host $body
 
 #send the request to create the real server
-Invoke-WebRequest -Uri $adc$apipath -Body $body -ContentType application/json -Headers $headers -Method Post -OutVariable output
+$output = Invoke-WebRequest -Uri $adc$apipath -Body $body -ContentType application/json -Headers $headers -Method Post
 
 #write the result of the commands to the console
-Write-Host $output   
+Write-Host $output.content   
 
 #lets go ahead and log off
 . ".\logoff.ps1" $adc

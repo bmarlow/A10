@@ -85,17 +85,6 @@ function isNumeric ($x) {
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
 #load the file with the ACL
 $filecontents = Get-Content $file
 
