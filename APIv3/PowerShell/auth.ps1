@@ -14,8 +14,8 @@ if(-not($adc)) { Throw "You must specify an ADC as the first argument" }
 
 
 #set username and pass
-$username = "rouser"
-$pass = "changeme"
+$username = "admin"
+$pass = "a10"
 
 #build the json body
 $body = @"

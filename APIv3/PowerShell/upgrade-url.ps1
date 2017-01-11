@@ -3,14 +3,14 @@
 #author		     :Brandon Marlow
 #date            :02/23/16
 #version         :2.00
-#usage		     :GetVersion.ps1 [adc]
+#usage		     :Upgrade.ps1 [device]
 #==============================================================================
 
 #get the params
 
 Param(
    [Parameter(Mandatory=$True,Position=1)]
-   [string[]]$adc,
+   [string[]]$device,
 
    [Parameter(Mandatory=$True)]
    [string[]]$image,
@@ -19,11 +19,18 @@ Param(
    [string[]]$url
 )
 
+
+$devicelist = $device.split(",")
+
+
 #set the path for real server manipulation
 $apipath = "/axapi/v3/upgrade/hd"
 
+
+
+
 #authenticate
-. ".\auth.ps1" $adc
+. ".\auth.ps1" $device
 
 $body = @"
 {"hd":{"image":"$image","use-mgmt-port":1,"file-url":"$url"}}
