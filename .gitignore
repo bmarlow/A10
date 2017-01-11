@@ -1,0 +1,3 @@
+#Ingore Dropbox Stuff
+*.dropbox
+*.dropbox.attr
