@@ -1,0 +1,41 @@
+
+<#PSScriptInfo
+
+.VERSION 1.0.1
+
+.GUID 0213cc2d-319e-47d4-91d8-5263901f3a9a
+
+.AUTHOR Brandon Marlow - bmarlow@a10networks.com
+
+.COMPANYNAME A10 Networks
+
+.COPYRIGHT 
+
+.TAGS 
+
+.LICENSEURI 
+
+.PROJECTURI 
+
+.ICONURI 
+
+.EXTERNALMODULEDEPENDENCIES 
+
+.REQUIREDSCRIPTS 
+
+.EXTERNALSCRIPTDEPENDENCIES 
+
+.RELEASENOTES
+
+
+#>
+
+<# 
+
+.DESCRIPTION 
+ A basic authentication script 
+
+#> 
+Param()
+
+

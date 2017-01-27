@@ -1,0 +1,23 @@
+PYTHON="/usr/local/bin/python"
+LICENSE_BACK_COMP_CHK="/a10/bin/startup_parse_chk.py"
+LIC_LOG="/a10data/lic-backward"
+SKU_PROD_FILE="/a10data/etc/SKU_PROD_ID"
+PAST_YEAR=15
+PAST_WEEK=13
+CFW_REL_WEEK=24
+#Keep the products orders aligned here; Refer enum for scm_prod_licenses_t
+A10_SCM_PROD_CFW=0x1
+A10_SCM_PROD_ADC=0x2
+
+program_sku_product() {
+   # set block id 0x4 for SKU block
+   epr -O 0x4
+   # set product id
+   epr -P $1
+   #set magic code
+   epr -M 0x0
+   # program the sku block and set checksum based on serial number
+   epr -d mb -i 4
+
+   echo $(printf "%d" $1) > $SKU_PROD_FILE
+}
