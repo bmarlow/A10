@@ -406,7 +406,8 @@ Content-Type: application/json
     Write-Output "$device Uploading upgrade file, this may take a few minutes depending on your connection to the A10 Device, please wait"
     
     #you'll notice that we don't use one of the call-axapi methods above, its because this particular call is unique in that it is a multi-part upload
-    $response = Invoke-WebRequest -Uri $prefix//$device/$axapi/upgrade/hd -Method Post -ContentType "multipart/form-data; boundary=$boundary" -Body $body -Headers $script:headers 
+    
+    $response = Invoke-WebRequest -Uri $prefix//$device/$axapi/upgrade/hd -Method Post -ContentType "multipart/form-data; boundary=$boundary" -Body $body -Headers $script:headers
            
     $responsecode = $response.statuscode
     
@@ -468,7 +469,7 @@ function reboot ($device){
     Write-Output "$device Calling reboot"
     $response = call-axapi-code-reponse $device "reboot" "Post"
     If ($response -like '2*'){
-        Write-Output "$device Reboot command successfully recieved, device will reboot momentairly, please wait"
+        Write-Output "$device Reboot command successfully received, device will reboot momentarily, please wait"
     }
  
 }
