@@ -49,10 +49,10 @@
 
 
 .NOTES
-    Version:        1.0
+    Version:        1.1
     Author:         Brandon Marlow - bmarlow@a10networks.com
     Creation Date:  12/22/2016
-    Purpose/Change: Initial script development
+    Purpose/Change: To upgrade 4.x ACOS devices
     Credit:         Thanks to John Lawrence for building much of the inital framework that was re-used by this script
 
 .LINK
@@ -139,7 +139,7 @@ $sScriptVersion = "1.0"
 $axapi = "axapi/v3"
 
 #if you just want to use vanilla http (why?) you can change this to http
-$prefix = "https:"
+$prefix = "http:"
 
 #get powershell version
 $powershellversion = $PSVersionTable.PSVersion.Major
@@ -169,6 +169,12 @@ If (!($media)){
     $media="hd"
 }
 
+If ($partition -eq "pri"){
+    $script:longpartition = "primary"    
+}
+ElseIf ($partition -eq "sec"){
+    $script:longpartition = "secondary"
+}
 #-----------------------------------------------------------[Functions]------------------------------------------------------------
 
 #functions that can run outside of the loop
@@ -249,19 +255,9 @@ function stage-upgrade {
     
     $script:shortfilename = $filesplit[-1]
     
-
-  
-    #check if the reboot swtich is set, if it is set the reboot value to 1
-    If ($reboot -eq "True"){
-        $reboot="1"
-    }
-    Else {
-        $reboot="0"
-    }
-    
-    #build the json for the upgrade
+    #build the json for the upgrade (we don't specify reboot here, but rather in a seperate function
     $script:upgradejsondata = @"
-{"$media":{"image":"$partition","image-file":"$script:shortfilename","reboot-after-upgrade":$reboot}}
+{"$media":{"image":"$partition","image-file":"$script:shortfilename","reboot-after-upgrade":0}}
 "@
 
 }
@@ -374,7 +370,142 @@ function file-load-encode ($device) {
 
 }
 
-function upgrade ($device, $encodedfile){
+function legacy-upgrade ($device, $script:encodedfile){
+    Write-Host "Entering Legacy Upgrade loop"
+    #in early verisons of 4.1.0 the GUI upgrade did not 'fully' use the API
+    #in this instance we must mimic a web session by authenticating through the GUI
+    Write-Host "Creating Session"
+    $url = "http://$device/gui/auth/login/" 
+    $webrequest = Invoke-WebRequest -Uri $url -SessionVariable websession
+    $cookies = $websession.Cookies.GetCookies($url) 
+
+    $csrftoken = $cookies[1].Value
+
+    $script:csrftoken = $csrftoken.Replace('"','')
+
+    $body = "csrfmiddlewaretoken=$script:csrftoken&username=$script:user&password=$script:pass"
+
+
+    $authrequest = Invoke-WebRequest -uri "$prefix//$device/gui/auth/login/" -Websession $websession -Body $body -Method Post
+
+    #after the authentication the cookie order is changed and the CSRF token is updated
+    $cookies = $websession.Cookies.GetCookies($url) 
+
+    $csrftoken = $cookies[0].Value
+
+    $script:csrftoken = $csrftoken.Replace('"','')
+
+    Write-Host "Authenticating"
+    If ($authrequest.Content -like "*forbidden*"){
+        Write-Host "Authentication failed"
+    }
+    Else{
+        Write-Host "Successfully Authenticated"
+    }
+   
+   
+   
+    #define an arbitrary and unique string for the multipart boundary (this runs in the upgrade section so that we can use the boundary to uniquely identify jobs)
+    $boundary = [guid]::NewGuid().ToString()
+    Write-Output "$device GUID generated for multipart boundary"
+
+    #build the multipart (numeric values populated by the field formatting in the body definition)
+    #the payload here consists of two parts, 1: the file stream, 2 the json for the axapi endpoint
+    $multipartdata = @'
+--{0}
+Content-Disposition: form-data; name="csrfmiddlewaretoken"
+
+{1}
+--{0}
+Content-Disposition: form-data; name="destination"
+
+{2}
+--{0}
+Content-Disposition: form-data; name="staggered_upgrade_mode"
+
+0
+--{0}
+Content-Disposition: form-data; name="device"
+
+
+--{0}
+Content-Disposition: form-data; name="reboot"
+
+0
+--{0}
+Content-Disposition: form-data; name="save_config"
+
+1
+--{0}
+Content-Disposition: form-data; name="local_remote"
+
+0
+--{0}
+Content-Disposition: form-data; name="use_mgmt_port"
+
+0
+--{0}
+Content-Disposition: form-data; name="protocol"
+
+tftp
+--{0}
+Content-Disposition: form-data; name="host"
+
+
+--{0}
+Content-Disposition: form-data; name="port"
+
+
+--{0}
+Content-Disposition: form-data; name="location"
+
+
+--{0}
+Content-Disposition: form-data; name="user"
+
+
+--{0}
+Content-Disposition: form-data; name="password"
+
+
+--{0}
+Content-Disposition: form-data; name="upgrade_file_upload"; filename="{3}"
+Content-Type: application/octet-stream
+
+{4}
+--{0}--
+
+'@
+
+    Write-Output "$device Multi-Part template defined"
+
+    $headers = @{ "X-CSRFToken" = "$script:csrftoken" }
+
+    #defining the body of the axapi call by calling our mutlipart variable and then pouplating the fields (this is necessary with variables because the $encodedfile variable is ginormous)
+    $body = $multipartdata -f $boundary, $script:csrftoken, $script:longpartition, $script:shortfilename, $script:encodedfile
+    
+    Write-Output "$device Multi-Part template populated"
+
+    Write-Output "$device Uploading upgrade file, this may take a few minutes depending on your connection to the A10 Device, please wait"
+    
+    #you'll notice that we don't use one of the call-axapi methods above, its because this particular call is unique in that it is a multi-part upload
+    $response = Invoke-WebRequest -Uri $prefix//$device/gui/system/maintenance/upgrade/ -Method Post -ContentType "multipart/form-data; boundary=$boundary" -Body $body -WebSession $websession -headers $headers
+           
+    $responsecode = $response.statuscode
+    
+    If ($responsecode -notlike '2*'){
+        Write-Output "$device Looks like there was a problem with the upgrade possibly the file is corrupt.  Did you verify the MD5 Checksum?"
+        Write-Output "$device Due to upgrade failure, exiting script"
+        exit(1)
+    }
+    Else{
+        Write-Output "$device Successfully upgraded, continuing with process"
+    }
+
+}
+
+
+function upgrade ($device, $script:encodedfile){
 
     #define an arbitrary and unique string for the multipart boundary (this runs in the upgrade section so that we can use the boundary to uniquely identify jobs)
     $boundary = [guid]::NewGuid().ToString()
@@ -451,8 +582,8 @@ function get-bootvar ($device){
 
 function get-ver ($device){
     $response = call-axapi $device "version/oper" "get"
-    $installedver = $response.version.oper."$media-$partition"
-    Write-Output "$device The version currently installed on $media-$partition is $installedver"
+    $script:installedver = $response.version.oper."$media-$partition"
+    Write-Output "$device The version currently installed on $media-$partition is $script:installedver"
 }
 
 function get-running-ver ($device){
@@ -535,7 +666,15 @@ Foreach ($device in $devices){
     get-ver $device
     get-bootvar $device
     file-load-encode $device
-    upgrade $device $script:encodedfile
+    
+    #the initial release of 4.1.0 didn't support the full API upgrade methods in the GUI, this works around that
+    if ($script:installedver -eq "4.1.0.454"){
+        legacy-upgrade $device $script:encodedfile
+    }
+    Else{
+        upgrade $device $script:encodedfile
+    }
+
     get-ver $device
     get-bootvar $device
     
