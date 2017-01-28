@@ -367,7 +367,6 @@ function legacy-upgrade ($device, $script:encodedfile){
     }
     catch{
         invoke-web-failure
-        break
     }
     
     $cookies = $websession.Cookies.GetCookies($url) 
@@ -382,6 +381,7 @@ function legacy-upgrade ($device, $script:encodedfile){
         $authrequest = Invoke-WebRequest -uri "$prefix//$device/gui/auth/login/" -Websession $websession -Body $body -Method Post
     }
     catch{
+        Write-Output "Authentcation failed"
         invoke-web-failure
     }
     #after the authentication the cookie order is changed and the CSRF token is updated
@@ -506,15 +506,14 @@ Content-Type: application/octet-stream
 }
 
 function invoke-web-failure {
-$global:helpme = $body
-$global:helpmoref = $moref
-$global:result = $_.Exception.Response.GetResponseStream()
-$global:reader = New-Object System.IO.StreamReader($global:result)
-$global:responseBody = $global:reader.ReadToEnd();
-Write-Host -BackgroundColor:Black -ForegroundColor:Red "Status: A system exception was caught."
-Write-Host -BackgroundColor:Black -ForegroundColor:Red $global:responsebody
-Write-Host -BackgroundColor:Black -ForegroundColor:Red "The request body has been saved to `$global:helpme"
-break
+    $global:helpme = $body
+    $global:helpmoref = $moref
+    $global:result = $_.Exception.Response.GetResponseStream()
+    $global:reader = New-Object System.IO.StreamReader($global:result)
+    $global:responseBody = $global:reader.ReadToEnd();
+    Write-Host -BackgroundColor:Black -ForegroundColor:Red "Status: A system exception was caught."
+    Write-Host -BackgroundColor:Black -ForegroundColor:Red "The failed request body was $global:helpme"
+    exit(1)
 }
 
 function upgrade ($device, $script:encodedfile){
