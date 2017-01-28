@@ -133,13 +133,13 @@ $script:results = @{}
 
 #--------------------------------------------------[Declarations and Sanity Checks]--------------------------------------------------
 #Script Version
-$sScriptVersion = "1.0"
+$sScriptVersion = "1.1"
 
 #Set AXAPI location
 $axapi = "axapi/v3"
 
 #if you just want to use vanilla http (why?) you can change this to http
-$prefix = "http:"
+$prefix = "https:"
 
 #get powershell version
 $powershellversion = $PSVersionTable.PSVersion.Major
@@ -273,8 +273,6 @@ function call-axapi($device, $module, $method, $body){
     Process{
         Try{
             #Set the base URI
-            #UPDATE TO HTTPS
-            #$baseURI = "http://$device/$axapi"
 
             if ($body) {
                 #for requests that have a body
@@ -288,12 +286,7 @@ function call-axapi($device, $module, $method, $body){
 
         }
         Catch{
-            Write-Output ""
-            Write-Output "$device *************************************************************************************"
-            Write-Output $device $_.Exception
-            Write-Output "$device *************************************************************************************"
-            Write-Output ""
-            Write-Output "$device There was an error, please check your configuration and try again"
+            invoke-web-failure
             Break
         }
     }
@@ -309,8 +302,6 @@ function call-axapi-code-reponse($device, $module, $method, $body){
     Process{
         Try{
             #Set the base URI
-            #UPDATE TO HTTPS
-            #$baseURI = "http://$device/$axapi"
             
             if ($body) {
                 $result = Invoke-WebRequest -Uri $prefix//$device/$axapi/$module -Method $method -Headers $script:headers -Body $body -ContentType application/json
@@ -322,12 +313,7 @@ function call-axapi-code-reponse($device, $module, $method, $body){
 
         }
         Catch{
-            Write-Output ""
-            Write-Output "$device *************************************************************************************"
-            Write-Output $device $_.Exception
-            Write-Output "$device *************************************************************************************"
-            Write-Output ""
-            Write-Output "$device There was an error, please check your configuration and try again"
+            invoke-web-failure
             Break
         }
     }
@@ -375,25 +361,35 @@ function legacy-upgrade ($device, $script:encodedfile){
     #in early verisons of 4.1.0 the GUI upgrade did not 'fully' use the API
     #in this instance we must mimic a web session by authenticating through the GUI
     Write-Host "Creating Session"
-    $url = "http://$device/gui/auth/login/" 
-    $webrequest = Invoke-WebRequest -Uri $url -SessionVariable websession
+    $url = "$prefix//$device/gui/auth/login/" 
+    try{
+        $webrequest = Invoke-WebRequest -Uri $url -SessionVariable websession
+    }
+    catch{
+        invoke-web-failure
+        break
+    }
+    
     $cookies = $websession.Cookies.GetCookies($url) 
 
     $csrftoken = $cookies[1].Value
 
-    $script:csrftoken = $csrftoken.Replace('"','')
+    $csrftoken = $csrftoken.Replace('"','')
 
-    $body = "csrfmiddlewaretoken=$script:csrftoken&username=$script:user&password=$script:pass"
+    $body = "csrfmiddlewaretoken=$csrftoken&username=$script:user&password=$script:pass"
 
-
-    $authrequest = Invoke-WebRequest -uri "$prefix//$device/gui/auth/login/" -Websession $websession -Body $body -Method Post
-
+    try{
+        $authrequest = Invoke-WebRequest -uri "$prefix//$device/gui/auth/login/" -Websession $websession -Body $body -Method Post
+    }
+    catch{
+        invoke-web-failure
+    }
     #after the authentication the cookie order is changed and the CSRF token is updated
     $cookies = $websession.Cookies.GetCookies($url) 
 
     $csrftoken = $cookies[0].Value
 
-    $script:csrftoken = $csrftoken.Replace('"','')
+    $csrftoken = $csrftoken.Replace('"','')
 
     Write-Host "Authenticating"
     If ($authrequest.Content -like "*forbidden*"){
@@ -479,18 +475,23 @@ Content-Type: application/octet-stream
 
     Write-Output "$device Multi-Part template defined"
 
-    $headers = @{ "X-CSRFToken" = "$script:csrftoken" }
+    #Set required headers as dictated by the A10 device
+    $headers = @{ "X-CSRFToken" = "$csrftoken"; "Referer" = "$prefix//$device/gui" }
 
     #defining the body of the axapi call by calling our mutlipart variable and then pouplating the fields (this is necessary with variables because the $encodedfile variable is ginormous)
-    $body = $multipartdata -f $boundary, $script:csrftoken, $script:longpartition, $script:shortfilename, $script:encodedfile
+    $body = $multipartdata -f $boundary, $csrftoken, $script:longpartition, $script:shortfilename, $script:encodedfile
     
     Write-Output "$device Multi-Part template populated"
 
     Write-Output "$device Uploading upgrade file, this may take a few minutes depending on your connection to the A10 Device, please wait"
     
     #you'll notice that we don't use one of the call-axapi methods above, its because this particular call is unique in that it is a multi-part upload
-    $response = Invoke-WebRequest -Uri $prefix//$device/gui/system/maintenance/upgrade/ -Method Post -ContentType "multipart/form-data; boundary=$boundary" -Body $body -WebSession $websession -headers $headers
-           
+    
+    try{ $response = Invoke-WebRequest -Uri $prefix//$device/gui/system/maintenance/upgrade/ -Method Post -ContentType "multipart/form-data; boundary=$boundary" -Body $body -WebSession $websession -headers $headers
+    }
+    catch{
+        invoke-web-failure
+    }       
     $responsecode = $response.statuscode
     
     If ($responsecode -notlike '2*'){
@@ -504,6 +505,17 @@ Content-Type: application/octet-stream
 
 }
 
+function invoke-web-failure {
+$global:helpme = $body
+$global:helpmoref = $moref
+$global:result = $_.Exception.Response.GetResponseStream()
+$global:reader = New-Object System.IO.StreamReader($global:result)
+$global:responseBody = $global:reader.ReadToEnd();
+Write-Host -BackgroundColor:Black -ForegroundColor:Red "Status: A system exception was caught."
+Write-Host -BackgroundColor:Black -ForegroundColor:Red $global:responsebody
+Write-Host -BackgroundColor:Black -ForegroundColor:Red "The request body has been saved to `$global:helpme"
+break
+}
 
 function upgrade ($device, $script:encodedfile){
 
@@ -538,8 +550,13 @@ Content-Type: application/json
     
     #you'll notice that we don't use one of the call-axapi methods above, its because this particular call is unique in that it is a multi-part upload
     
-    $response = Invoke-WebRequest -Uri $prefix//$device/$axapi/upgrade/hd -Method Post -ContentType "multipart/form-data; boundary=$boundary" -Body $body -Headers $script:headers
-           
+    try{
+        $response = Invoke-WebRequest -Uri $prefix//$device/$axapi/upgrade/hd -Method Post -ContentType "multipart/form-data; boundary=$boundary" -Body $body -Headers $script:headers
+    }
+    catch{
+        invoke-web-failure
+        break
+    }   
     $responsecode = $response.statuscode
     
     If ($responsecode -notlike '2*'){
