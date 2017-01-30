@@ -49,10 +49,12 @@
 
 
 .NOTES
-    Version:        1.1
+    Version:        1.2
     Author:         Brandon Marlow - bmarlow@a10networks.com
     Creation Date:  12/22/2016
-    Purpose/Change: To upgrade 4.x ACOS devices
+    Rev 1.0:        Initial support for 4.x ACOS devices running AXAPIv3
+    Rev 1.1:        Support added for 4.1.0 devices which don't fully use AXAPv3 for the upgrade
+    Rev 1.2:        Intelligence added around checking device status before attempting upgrade (and not exiting the whole script on a failure)
     Credit:         Thanks to John Lawrence for building much of the inital framework that was re-used by this script
 
 .LINK
@@ -133,7 +135,7 @@ $script:results = @{}
 
 #--------------------------------------------------[Declarations and Sanity Checks]--------------------------------------------------
 #Script Version
-$sScriptVersion = "1.1"
+$sScriptVersion = "1.2"
 
 #Set AXAPI location
 $axapi = "axapi/v3"
@@ -357,10 +359,10 @@ function file-load-encode ($device) {
 }
 
 function legacy-upgrade ($device, $script:encodedfile){
-    Write-Host "Entering Legacy Upgrade loop"
+    Write-Output "$device Entering Legacy Upgrade loop"
     #in early verisons of 4.1.0 the GUI upgrade did not 'fully' use the API
     #in this instance we must mimic a web session by authenticating through the GUI
-    Write-Host "Creating Session"
+    Write-Output "$device Creating Session"
     $url = "$prefix//$device/gui/auth/login/" 
     try{
         $webrequest = Invoke-WebRequest -Uri $url -SessionVariable websession
@@ -381,7 +383,7 @@ function legacy-upgrade ($device, $script:encodedfile){
         $authrequest = Invoke-WebRequest -uri "$prefix//$device/gui/auth/login/" -Websession $websession -Body $body -Method Post
     }
     catch{
-        Write-Output "Authentcation failed"
+        Write-Output "$device Authentcation failed"
         invoke-web-failure
     }
     #after the authentication the cookie order is changed and the CSRF token is updated
@@ -391,12 +393,12 @@ function legacy-upgrade ($device, $script:encodedfile){
 
     $csrftoken = $csrftoken.Replace('"','')
 
-    Write-Host "Authenticating"
+    Write-Output "$device Authenticating"
     If ($authrequest.Content -like "*forbidden*"){
-        Write-Host "Authentication failed"
+        Write-Output "$device Authentication failed"
     }
     Else{
-        Write-Host "Successfully Authenticated"
+        Write-Output "$device Successfully Authenticated"
     }
    
    
@@ -495,9 +497,9 @@ Content-Type: application/octet-stream
     $responsecode = $response.statuscode
     
     If ($responsecode -notlike '2*'){
-        Write-Output "$device Looks like there was a problem with the upgrade possibly the file is corrupt.  Did you verify the MD5 Checksum?"
-        Write-Output "$device Due to upgrade failure, exiting script"
-        exit(1)
+        Write-Host -BackgroundColor:Black -ForegroundColor:Red "$device Looks like there was a problem with the upgrade possibly the file is corrupt.  Did you verify the MD5 Checksum?"
+        Write-Host -BackgroundColor:Black -ForegroundColor:Redt "$device Upgrade failed"
+        continue
     }
     Else{
         Write-Output "$device Successfully upgraded, continuing with process"
@@ -511,9 +513,10 @@ function invoke-web-failure {
     $global:result = $_.Exception.Response.GetResponseStream()
     $global:reader = New-Object System.IO.StreamReader($global:result)
     $global:responseBody = $global:reader.ReadToEnd();
-    Write-Host -BackgroundColor:Black -ForegroundColor:Red "Status: A system exception was caught."
-    Write-Host -BackgroundColor:Black -ForegroundColor:Red "The failed request body was $global:helpme"
-    exit(1)
+    Write-Host -BackgroundColor:Black -ForegroundColor:Red "$device Status: A system exception was caught."
+    Write-Host -BackgroundColor:Black -ForegroundColor:Red "$device The failed request body was $global:helpme"
+    Write-Output "Exiting"
+    continue
 }
 
 function upgrade ($device, $script:encodedfile){
@@ -554,14 +557,14 @@ Content-Type: application/json
     }
     catch{
         invoke-web-failure
-        break
+        continue
     }   
     $responsecode = $response.statuscode
     
     If ($responsecode -notlike '2*'){
-        Write-Output "$device Looks like there was a problem with the upgrade possibly the file is corrupt.  Did you verify the MD5 Checksum?"
-        Write-Output "$device Due to upgrade failure, exiting script"
-        exit(1)
+        Write-Host -BackgroundColor:Black -ForegroundColor:Red "$device Looks like there was a problem with the upgrade possibly the file is corrupt.  Did you verify the MD5 Checksum?"
+        Write-Host -BackgroundColor:Black -ForegroundColor:Red "$device Upgrade Failed"
+        continue
     }
     Else{
         Write-Output "$device Successfully upgraded, continuing with process"
@@ -583,10 +586,10 @@ function update-bootvar ($device){
         Write-Output "$device At next reboot the device will boot from $media-$partition"
     }
     Else{
-        Write-Output "$device looks like there was a problem updating the boot variable"
-        Write-Output "$device Failure to update the bootvariable may be indicitative of other problems"
-        Write-Output "$device Exiting"
-        exit(1)
+        Write-Host -BackgroundColor:Black -ForegroundColor:Red "$device looks like there was a problem updating the boot variable"
+        Write-Host -BackgroundColor:Black -ForegroundColor:Red "$device Failure to update the bootvariable may be indicitative of other problems"
+        Write-Host -BackgroundColor:Black -ForegroundColor:Redt "$device Stopping this device upgrade process"
+        continue
     }
 }
 
@@ -625,25 +628,51 @@ function rebootmonitor ($device){
     $pingcount = 0
     do {
         $ping = Test-Connection $device -Quiet -Count 1
-        Write-Host "$device Waiting for device to finish rebooting, please wait"
+        Write-Output "$device Waiting for device to finish rebooting, please wait"
         $pingcount = $pingcount + 1
     }
     Until (($ping -eq $True) -or ($pingcount -eq 300))
         If ($ping -eq $true){
             #the device has started responding to ping but that doesn't mean that axapi is working yet, so we give it a few more seconds to initalize after the first ping responses
-            write-host "$device Device is now initializing"
+            Write-Output "$device Device is now initializing"
             Start-Sleep -Seconds 10
-            Write-Host "$device Device has finished rebooting"
+            Write-Output "$device Device has finished rebooting"
       
         }
         #if the pingcount goes above 300 there is probably an issue with the box that needs to be resolved manually
         ElseIf ($pingcount -eq 300){
-            Write-Host "$device Device has not responded to 300 pings, please manually check device"
-            Write-Host "$device Exiting..."
-            exit(1)
+            Write-Host -BackgroundColor:Black -ForegroundColor:Red "$device Device has not responded to 300 pings, please manually check device"
+            Write-Host -BackgroundColor:Black -ForegroundColor:Red "$device Exiting..."
+            continue
         }
 
 }
+
+function checkstatus ($device){
+    $pingcount = 0
+    do {
+        $ping = Test-Connection $device -Quiet -Count 1
+        Write-Output "$device Waiting for device to finish initialization, please wait"
+        $pingcount = $pingcount + 1
+    }
+    Until (($ping -eq $True) -or ($pingcount -eq 2))
+        If ($ping -eq $true){
+            #the device has started responding to ping but that doesn't mean that axapi is working yet, so we give it a few more seconds to initalize after the first ping responses
+            Write-Output "$device is Online."
+            Write-Output "$device Please wait for device to finish initialization"
+            Start-Sleep -Seconds 5
+            Write-Output "$device is now ready"
+      
+        }
+        #if the pingcount goes above 300 there is probably an issue with the box that needs to be resolved manually
+        ElseIf ($pingcount -eq 2){
+            Write-Host -BackgroundColor:Black -ForegroundColor:Red "$device Device is not up"
+            Write-Host -BackgroundColor:Black -ForegroundColor:Red "$device Exiting"
+            continue
+        }
+
+}
+
 
 function logoff($device){
     $logoff = call-axapi-code-reponse $device "logoff" "Post"
@@ -678,6 +707,7 @@ Foreach ($device in $devices){
     Write-Output "**************************************************************************************"
     Write-Output "**************************************************************************************"
     Write-Output ""
+    checkstatus($device)
     authenticate $device
     get-ver $device
     get-bootvar $device
