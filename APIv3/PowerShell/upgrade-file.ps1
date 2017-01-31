@@ -489,7 +489,7 @@ Content-Type: application/octet-stream
     
     #you'll notice that we don't use one of the call-axapi methods above, its because this particular call is unique in that it is a multi-part upload
     
-    try{ $response = Invoke-WebRequest -Uri $prefix//$device/gui/system/maintenance/upgrade/ -Method Post -ContentType "multipart/form-data; boundary=$boundary" -Body $body -WebSession $websession -headers $headers
+    try{ $response = Invoke-WebRequest -Uri $prefix//$device/gui/system/maintenance/upgrade/ -Method Post -ContentType "multipart/form-data; boundary=$boundary" -Body $body -WebSession $websession -headers $headers -TimeoutSec 999
     }
     catch{
         invoke-web-failure
@@ -553,7 +553,7 @@ Content-Type: application/json
     #you'll notice that we don't use one of the call-axapi methods above, its because this particular call is unique in that it is a multi-part upload
     
     try{
-        $response = Invoke-WebRequest -Uri $prefix//$device/$axapi/upgrade/hd -Method Post -ContentType "multipart/form-data; boundary=$boundary" -Body $body -Headers $script:headers
+        $response = Invoke-WebRequest -Uri $prefix//$device/$axapi/upgrade/hd -Method Post -ContentType "multipart/form-data; boundary=$boundary" -Body $body -Headers $script:headers -TimeoutSec 999
     }
     catch{
         invoke-web-failure
