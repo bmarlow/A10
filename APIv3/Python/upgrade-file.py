@@ -1,5 +1,6 @@
 import argparse
 import hashlib
+import getpass
 from functools import partial
 import sys
 print(sys.version)
@@ -11,8 +12,8 @@ parser.add_argument("-uf", "--upgradefile", help="the ACOS upgrade file")
 parser.add_argument("-pa", "--partition", help="the ACOS partition to upgrade", choices=["pri","sec"])
 parser.add_argument("-me", "--media", help="the device media to install to", choices=["hd","cf"], default="hd")
 parser.add_argument("-m5", "--md5sum", help="the MD5sum of the upgrade file", default="" )
-parser.add_argument("-us", "--user", help="an A10 admin user", default="admin")
-parser.add_argument("-pw", "--password", help="the user's password")
+parser.add_argument("-us", "--user", help="an A10 admin user", default="")
+parser.add_argument("-pw", "--password", help="the user's password", default="")
 parser.add_argument("-up", "--updatebootvar", help="set to update the boot partition", action="store_true")
 parser.add_argument("-re", "--reboot", help="reboot after ugprade", action="store_true")
 parser.add_argument("-dw", "--dontwaitforreturn", help="dont wait for device to finish reboot before moving to next", action="store_true")
@@ -20,7 +21,7 @@ parser.add_argument("-dw", "--dontwaitforreturn", help="dont wait for device to 
 args = parser.parse_args()
 
 
-devices = args.devices.split(',')
+devices = args.devices.split(",")
 device_file = args.devicefile
 upgrade_file = args.upgradefile
 partition = args.partition
@@ -39,8 +40,10 @@ scriptversion = "0.1"
 prefix = "http"
 
 def requirements():
+	'''check to make sure we are running the correct version of python'''
 	if sys.version_info[0] < 3:
 		print("This program requires Python 3")
+		print("Exiting")
 		exit(1)
 
 def checkmd5sum():
@@ -92,10 +95,35 @@ def md5get(filename):
 			d.update(buf)
 	return d.hexdigest()
 
+def getcreds():
+	'''get the username and password'''
+	global user
+	global password
+	user = input("Please enter your username")
+	password = getpass.getpass("Please enter password")
+	
+def stageupgrade():
+	'''build the JSON payload for the API upgrade'''
+	global upgradejsondata
+	filesplit = upgrade_file.split(",")
+	shortfilename = filesplit[-1]
+	upgradejsondata = {media:{"image":partition,"image-file":shortfilename,"reboot-after-upgrade":0}}
 
 def main():
 	requirements()
-	checkmd5sum()
+	#checkmd5sum()
+	if not user or not password:
+		getcreds()
+	stageupgrade()
+
+def axapi_call(self, module, method, payload):
+"""docstring for axapi"""
+	url = self.base_url + module
+	if method == 'GET':
+		response = requests.get(url, headers=self.headers, verify=False)
+	elif method == 'POST':
+		response = requests.post(url, data=json.dumps(payload), headers=self.headers, verify=False)
+return response
 
 
 if __name__ == '__main__':
