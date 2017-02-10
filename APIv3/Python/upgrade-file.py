@@ -12,6 +12,7 @@ Example:
 Notes:
     Rev 1.0:    Initial release
     Rev 1.1:    Added notes and general cleanup for readability and general PEPiness
+    Rev 1.2:    Fixed some linux platform issues
 
 TODO:
     Mulithreading - need streaming to make this happen which will probably require the requests-toolbelt library
@@ -70,7 +71,7 @@ getscriptversion = args.version
 verbose = args.verbose
 
 # script version
-scriptversion = "1.1"
+scriptversion = "1.2"
 
 
 def main():
@@ -479,8 +480,7 @@ class Acos(object):
         module = 'bootimage/oper'
         method = 'GET'
         response = self.axapi_call(module, method)
-        responsejson = json.loads(response.content)
-        bootdefault = responsejson['bootimage']['oper']['hd-default']
+        bootdefault = response.json()['bootimage']['oper']['hd-default']
         print(self.device + ' The device is set to boot from: ' + bootdefault + ' in the future')
         return bootdefault
 
@@ -500,8 +500,7 @@ class Acos(object):
         module = 'version/oper'
         method = 'GET'
         response = self.axapi_call(module, method)
-        responsejson = json.loads(response.content)
-        installedver = responsejson['version']['oper'][bootdefault]
+        installedver = response.json()['version']['oper'][bootdefault]
         print(self.device + ' The version currently installed on ' + bootdefault + ' is: ' + installedver)
 
     def get_running_ver(self):
@@ -509,9 +508,8 @@ class Acos(object):
         module = 'version/oper'
         method = 'GET'
         response = self.axapi_call(module, method)
-        responsejson = json.loads(response.content)
-        runningver = responsejson['version']['oper']['sw-version']
-        currentpart = responsejson['version']['oper']['boot-from']
+        runningver = response.json()['version']['oper']['sw-version']
+        currentpart = response.json()['version']['oper']['boot-from']
         print(self.device + ' The current running version is: ' + runningver)
         print(self.device + ' The device is currently booted from: ' + currentpart)
         return runningver
@@ -534,11 +532,11 @@ class Acos(object):
 
         # if the OS is windows
         if os.name == 'nt':
-            ping = 'ping -n 1 '
+            ping = ['ping', '-n', '1', self.device]
 
         # if the OS is posix
         else:
-            ping = 'ping -c 1 '
+            ping = ['ping', '-c', '1', self.device]
 
         print(self.device + ' Waiting for device to finish rebooting, please wait', end='', flush=True)
         time.sleep(10)
@@ -546,7 +544,7 @@ class Acos(object):
         successcount = 0
         while count < 300:
             print('.', end='', flush=True)
-            ping_call = subprocess.Popen(ping + self.device, stdout=devnull)
+            ping_call = subprocess.Popen(ping, stdout=devnull)
             returncode = ping_call.wait()
             # we need multiple successes to allow this to work, otherwise a single response while the box is still initializing can bite us
             if returncode == 0:
@@ -572,18 +570,18 @@ class Acos(object):
 
         # if the OS is windows
         if os.name == 'nt':
-            ping = 'ping -n 1 '
+            ping = ['ping', '-n', '1', self.device]
 
         # if the OS is posix
         else:
-            ping = 'ping -c 1 '
+            ping = ['ping', '-c', '1', self.device]
 
         print(self.device + ' Checking for device availability', end='', flush=True)
         time.sleep(5)
         count = 0
         while count < 2:
             print('.', end='', flush=True)
-            ping_call = subprocess.Popen(ping + self.device, stdout=devnull)
+            ping_call = subprocess.Popen(ping, stdout=devnull)
             returncode = ping_call.wait()
             if returncode == 0:
                 break
