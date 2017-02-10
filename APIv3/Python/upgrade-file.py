@@ -8,8 +8,7 @@ Example:
     ./upgrade-file.py -de 10.0.1.221,10.0.1.222 -pa pri -me hd -user admin -password a10 -up -re -uf ./someACOSupgradefile.upg
 
     #Uprgade the list of devcies (on per line) on the secondary partition of the harddrive, then update the boot variable and reboot
-    ./upgrade-file.py -df devices.txt -pa sec -me hd -up -re -uf ./someACOSupgradefile.upp
-
+    ./upgrade-file.py -df devices.txt -pa sec -me hd -up -re -uf ./someACOSupgradefile.upg
 Notes:
     Rev 1.0:    Initial release
     Rev 1.1:    Added notes and general cleanup for readability and general PEPiness
@@ -311,7 +310,6 @@ class Acos(object):
         self.headers = {'content-type': 'application/json'}
         self.token = ''
         self.hostname = ''
-        self.versions = {}
 
     def axapi_authenticate(self, user, password):
         """authenticate to the ACOS device"""
