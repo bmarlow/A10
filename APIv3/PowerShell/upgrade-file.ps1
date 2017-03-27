@@ -81,6 +81,9 @@ param (
 
     [Parameter(Mandatory=$false)] 
     [switch]$reboot, 
+    
+    [Parameter(Mandatory=$false)] 
+    [switch]$usehttp, 
 
     [Parameter(Mandatory=$false)] 
     [switch]$updatebootvar, 
@@ -141,7 +144,12 @@ $sScriptVersion = "1.2"
 $axapi = "axapi/v3"
 
 #if you just want to use vanilla http (why?) you can change this to http
-$prefix = "https:"
+if ($usehttp){
+    $prefix = "http:"
+}
+else {
+    $prefix = "https:"
+}
 
 #get powershell version
 $powershellversion = $PSVersionTable.PSVersion.Major
