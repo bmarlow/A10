@@ -9,7 +9,7 @@
 #   - aXAPI V3
 #   - ACOS 3.0 or higher
 #
-# TODO: Add option to run multiple threads simultaniously
+# TODO: Add option to run multiple threads simultaneously
 #       Figure out how to deal w/ TLS_1.2 requirement when OpenSSL < 1.0.1
 
 
@@ -22,7 +22,9 @@ import requests
 import sys
 import time
 import datetime
-
+# disable SSL warnings for self signed certs
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 
 #
@@ -78,7 +80,7 @@ try:
     outfileperdevice = args.outfileperdevice
     verbose = args.verbose
 
-except IOError, msg:
+except IOError as msg:
     parser.error(str(msg))
 
 timestamp = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d--%H-%M-%S')
@@ -124,7 +126,7 @@ def read_devices_file(the_file):
                 number_of_devices = len(devices)
             if number_of_devices != 1:
                 plural='es'
-            print ('  INFO: Found ' + str(number_of_devices) + ' address' + plural)
+            print('  INFO: Found ' + str(number_of_devices) + ' address' + plural)
             return devices
     except:
         print('\n  ERROR: Unable to read ' + the_file)
@@ -146,7 +148,7 @@ def read_commands_file(the_file):
                 number_of_commands = len(commands_list)
             if number_of_commands != 1:
                 plural='s'
-            print ('  INFO: Found ' + str(number_of_commands) + ' command' + plural)
+            print('  INFO: Found ' + str(number_of_commands) + ' command' + plural)
             return commands_list
     except:
         print('\n  ERROR: Unable to read ' + the_file + '.')
@@ -160,7 +162,7 @@ class Acos(object):
         global dev_addr
         dev_addr = address
         self.device = address
-        self.base_url = 'https://' + address + '/axapi/v3/'
+        self.base_url = 'http://' + address + '/axapi/v3/'
         self.headers = {'content-type': 'application/json'}
         self.token = ''
         self.hostname = ''
@@ -248,7 +250,12 @@ class Acos(object):
                 print('**COMMANDS EXECUTED: ' + '[%s]' % ', '.join(commands_list))
                 print('**COMMANDS EXECUTED AT: ' + datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d--%H-%M-%S'))
                 print('')
-                print(r.content)
+                content = str(r.content)
+                newcontent = content.replace("\n", "")
+                print(newcontent)
+                split = r.newcontent.splitlines()
+                for line in split:
+                    print(line)
                 print('**********END COMMAND OUTPUT FOR ' + self.hostname + '*********')
             #want an output file per device, insert hostname and timestamp for execution
             if outfileperdevice:
@@ -290,11 +297,11 @@ class Acos(object):
             error = error + 1
             total = total + 1
             err_array.append(dev_addr)
-            print ('')
+            print('')
             print('  *******COMMAND FAILURE OCCURED*******')
             if not verbose:
                 print('  Please execute with -v for more information')
-                print ('')
+                print('')
     
     def logoff(self):
         """docstring for logoff"""
@@ -332,8 +339,11 @@ if commands_file:
 elif commands:
     commands_list = commands
 
-if verbose < 2:
-    logging.captureWarnings(True)
+try:
+    if verbose < 2:
+        logging.captureWarnings(True)
+except:
+    pass
 
 if not password:
     password = getpass.getpass( '\nEnter password for ' + username + ':')
