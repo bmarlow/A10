@@ -49,12 +49,13 @@
 
 
 .NOTES
-    Version:        1.2
+    Version:        1.2.1
     Author:         Brandon Marlow - bmarlow@a10networks.com
     Creation Date:  12/22/2016
     Rev 1.0:        Initial support for 4.x ACOS devices running AXAPIv3
     Rev 1.1:        Support added for 4.1.0 devices which don't fully use AXAPv3 for the upgrade
     Rev 1.2:        Intelligence added around checking device status before attempting upgrade (and not exiting the whole script on a failure)
+    Rev 1.2.1       Added a param for using plain HTTP for the upgrade process (defaults to https)
     Credit:         Thanks to John Lawrence for building much of the inital framework that was re-used by this script
 
 .LINK
