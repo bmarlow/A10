@@ -144,7 +144,7 @@ $sScriptVersion = "1.2"
 $axapi = "axapi/v3"
 
 #if you just want to use vanilla http (why?) you can change this to http
-if ($usehttp){
+if ($usehttp -eq $True){
     $prefix = "http:"
 }
 else {
