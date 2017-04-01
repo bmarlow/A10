@@ -26,6 +26,12 @@
 .PARAMETER Reboot
     --Optional -- Whether or not you would like to have the box reboot after the install has been performed
 
+.PARAMETER UseHTTP
+    --Optional -- Switch interactions to HTTP instead of HTTPS (note, default box behavior redirects HTTP to HTTPS which will may cause issues with this program
+
+.PARAMETER NoMD5Check
+    --Optional -- Skip the MD5 checksum portion of the script (and the requirement for running PowerShell version 4+
+
 .PARAMETER UpdateBootVar
     --Optional -- Whether or not to update the boot location for the device to the new image
 
@@ -56,7 +62,9 @@
     Rev 1.1:        Support added for 4.1.0 devices which don't fully use AXAPv3 for the upgrade
     Rev 1.2:        Intelligence added around checking device status before attempting upgrade (and not exiting the whole script on a failure)
     Rev 1.2.1       Added a param for using plain HTTP for the upgrade process (defaults to https)
+    Rev 1.3         Added a param for skipping MD5 check
     Credit:         Thanks to John Lawrence for building much of the inital framework that was re-used by this script
+
 
 .LINK
     www.a10networks.com
@@ -85,6 +93,9 @@ param (
     
     [Parameter(Mandatory=$false)] 
     [switch]$usehttp, 
+
+    [Parameter(Mandatory=$false)] 
+    [switch]$nomd5check, 
 
     [Parameter(Mandatory=$false)] 
     [switch]$updatebootvar, 
@@ -139,7 +150,7 @@ $script:results = @{}
 
 #--------------------------------------------------[Declarations and Sanity Checks]--------------------------------------------------
 #Script Version
-$sScriptVersion = "1.2"
+$sScriptVersion = "1.3"
 
 #Set AXAPI location
 $axapi = "axapi/v3"
@@ -155,14 +166,17 @@ else {
 #get powershell version
 $powershellversion = $PSVersionTable.PSVersion.Major
 
-#require powershell version 4 or greater
-If ($powershellversion -lt 4){
-    cls
-    Write-Output ""
-    Write-Output "***************************************Error****************************************"
-    Write-Output "This script requires powershell version 4 or higher for the functions that it uses."
-    Write-Output "Please install PowerShell version 4 or greater, then try running the script again."
-    exit(1)
+#require powershell version 4 or greater (only if doing an MD5 check)
+If ($nomd5check -eq $False){
+
+    If ($powershellversion -lt 4){
+        cls
+        Write-Output ""
+        Write-Output "***************************************Error****************************************"
+        Write-Output "This script requires powershell version 4 or higher for the functions that it uses."
+        Write-Output "Please install PowerShell version 4 or greater, then try running the script again."
+        exit(1)
+    }
 }
 
 If ((($Devices -eq $False) -and ($DeviceFile -eq $False)) -or (($Devices -eq $True) -and ($DeviceFile -eq $True))){
@@ -700,8 +714,9 @@ function logoff($device){
 #-----------------------------------------------------------[Execution]------------------------------------------------------------
 
 #getting the MD5 of your upgrade file and whatnot
-check-md5sum
-
+if ($nomd5check -eq $False){
+    check-md5sum
+}
 #get creds (if applicable)
 get-creds
 
