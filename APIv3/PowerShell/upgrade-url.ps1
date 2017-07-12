@@ -1,9 +1,9 @@
-﻿#title           :Upgrade.ps1
-#description     :This script will get the version/boot data
+﻿#title           :upgrade-url.ps1
+#description     :This script will upgrade the A10 device using a URL
 #author		     :Brandon Marlow
-#date            :02/23/16
-#version         :2.00
-#usage		     :Upgrade.ps1 [device]
+#date            :07/11/17
+#version         :2.10
+#usage		     :upgrade-url.ps1 -device [device] -detailed -reboot
 #==============================================================================
 
 #get the params
@@ -16,18 +16,31 @@ Param(
    [string[]]$image,
 
    [Parameter(Mandatory=$True)]
-   [string[]]$url
+   [string[]]$url,
+
+   [Parameter(Mandatory=$False)]
+   [switch]$detailed,
+
+   [Parameter(Mandatory=$False)]
+   [switch]$reboot
 )
 
 
-$devicelist = $device.split(",")
+if ($detailed -eq $True){
+    $detaileduri = "detailed-resp=true"
+    }
 
+if ($reboot -eq $True){
+    $rebooturi = "reboot=true"
+    }
 
-#set the path for real server manipulation
-$apipath = "/axapi/v3/upgrade/hd"
+if (($detailed -ne $True) -and ($reboot -ne $True)){
+    $apipath = "/axapi/v3/upgrade/hd"
+    }
 
-
-
+else{
+    $apipath = "/axapi/v3/upgrade/hd?$detaileduri&$rebooturi"
+    }
 
 #authenticate
 . ".\auth.ps1" $device
@@ -42,7 +55,7 @@ Write-Host $body
 $output = Invoke-WebRequest -Uri $adc$apipath -ContentType application/json -Headers $headers -Method Post -Body $body -TimeoutSec 10000000
 #write the result of the commands to the console
 
-Write-host "writing output variable"
+Write-host "writing output"
 
 Write-Host $output
 

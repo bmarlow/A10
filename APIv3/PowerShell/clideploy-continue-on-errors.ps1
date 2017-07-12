@@ -55,10 +55,11 @@ Try{
             Write-Output $output.RawContent
 }
         Catch{
-#            Write-Output $device $_.Exception
+            Write-Output "Exception Details Here"
+            $_ -split ('\. ')
+            #$output = $_.Exception.Message
+            #Write-Output $output
 
-            $output = $_
-            $output
             }
 
 
