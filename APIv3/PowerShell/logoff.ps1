@@ -13,5 +13,5 @@ $adc = $args[0]
 if(-not($adc)) { Throw "You must specify an ADC as the first argument" }
 
 #logoff
-Invoke-WebRequest -Uri $adc/axapi/v3/logoff -ContentType application/json -Headers $headers -Method Post | Out-Null
+Invoke-WebRequest -Uri https://$adc/axapi/v3/logoff -ContentType application/json -Headers $headers -Method Post | Out-Null
 
