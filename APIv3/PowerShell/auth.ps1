@@ -6,6 +6,37 @@
 #usage		     :auth.ps1 [adc IP]
 #==============================================================================
 
+Add-Type @"
+    using System;
+    using System.Net;
+    using System.Net.Security;
+    using System.Security.Cryptography.X509Certificates;
+    public class ServerCertificateValidationCallback
+    {
+        public static void Ignore()
+        {
+            ServicePointManager.ServerCertificateValidationCallback += 
+                delegate
+                (
+                    Object obj, 
+                    X509Certificate certificate, 
+                    X509Chain chain, 
+                    SslPolicyErrors errors
+                )
+                {
+                    return true;
+                };
+        }
+    }
+"@
+ 
+[ServerCertificateValidationCallback]::Ignore();
+
+#force TLS1.2 (necessary for the management interface)
+[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12;
+
+
+
 #grab the IP of the ADC
 $adc = $args[0]
 
@@ -14,8 +45,8 @@ if(-not($adc)) { Throw "You must specify an ADC as the first argument" }
 
 
 #set username and pass
-$username = "bob"
-$pass = "changeme"
+$username = "admin"
+$pass = "a10"
 
 #build the json body
 $body = @"
@@ -24,7 +55,7 @@ $body = @"
 
 
 #authenticate
-$auth = Invoke-RestMethod -Uri $adc/axapi/v3/auth -Body $body -ContentType application/json -Method Post
+$auth = Invoke-RestMethod -Uri https://$adc/axapi/v3/auth -Body $body -ContentType application/json -Method Post
 
 
 #extract the signature

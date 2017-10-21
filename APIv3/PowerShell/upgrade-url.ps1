@@ -8,6 +8,8 @@
 
 #get the params
 
+
+
 Param(
    [Parameter(Mandatory=$True,Position=1)]
    [string[]]$device,
@@ -24,6 +26,37 @@ Param(
    [Parameter(Mandatory=$False)]
    [switch]$reboot
 )
+
+
+Add-Type @"
+    using System;
+    using System.Net;
+    using System.Net.Security;
+    using System.Security.Cryptography.X509Certificates;
+    public class ServerCertificateValidationCallback
+    {
+        public static void Ignore()
+        {
+            ServicePointManager.ServerCertificateValidationCallback += 
+                delegate
+                (
+                    Object obj, 
+                    X509Certificate certificate, 
+                    X509Chain chain, 
+                    SslPolicyErrors errors
+                )
+                {
+                    return true;
+                };
+        }
+    }
+"@
+ 
+[ServerCertificateValidationCallback]::Ignore();
+
+#force TLS1.2 (necessary for the management interface)
+[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12;
+
 
 
 if ($detailed -eq $True){
@@ -44,7 +77,8 @@ else{
 
 #authenticate
 . ".\auth.ps1" $device
-
+#build the json body
+#the url format needs to be user:password@host/path/to/the/file
 $body = @"
 {"hd":{"image":"$image","use-mgmt-port":1,"file-url":"$url"}}
 "@
@@ -52,7 +86,16 @@ $body = @"
 Write-Host $body
 
 #send the request to create the real server
-$output = Invoke-WebRequest -Uri $adc$apipath -ContentType application/json -Headers $headers -Method Post -Body $body -TimeoutSec 10000000
+try
+    {
+        $output = Invoke-WebRequest -Uri https://$adc$apipath -ContentType application/json -Headers $headers -Method Post -Body $body -TimeoutSec 10000000
+    }
+
+catch
+    {
+        Write-Output $_.Exception
+    }
+
 #write the result of the commands to the console
 
 Write-host "writing output"

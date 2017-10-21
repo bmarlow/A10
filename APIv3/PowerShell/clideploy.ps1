@@ -20,6 +20,38 @@ Param(
 
 )
 
+
+Add-Type @"
+    using System;
+    using System.Net;
+    using System.Net.Security;
+    using System.Security.Cryptography.X509Certificates;
+    public class ServerCertificateValidationCallback
+    {
+        public static void Ignore()
+        {
+            ServicePointManager.ServerCertificateValidationCallback += 
+                delegate
+                (
+                    Object obj, 
+                    X509Certificate certificate, 
+                    X509Chain chain, 
+                    SslPolicyErrors errors
+                )
+                {
+                    return true;
+                };
+        }
+    }
+"@
+ 
+[ServerCertificateValidationCallback]::Ignore();
+
+#force TLS1.2 (necessary for the management interface)
+[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12;
+
+
+
 #either $commands or $file can be set, not both.  but since they can't be mandatory we need to make sure that they both are not set, as well as that they both are not null.
 if((-not($commands) -and (-not($file)))) { Throw "You must specify either a commandlist OR a file" }
 
@@ -49,7 +81,7 @@ $body = @"
 Write-Host $body
 
 #send the request to create the real server
-$output = Invoke-WebRequest -Uri $adc$apipath -Body $body -ContentType application/json -Headers $headers -Method Post
+$output = Invoke-WebRequest -Uri https://$adc$apipath -Body $body -ContentType application/json -Headers $headers -Method Post
 
 #write the result of the commands to the console
 Write-Host $output.content   

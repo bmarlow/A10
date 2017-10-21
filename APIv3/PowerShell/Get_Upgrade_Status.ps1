@@ -1,10 +1,21 @@
-﻿#title           :logoff.ps1
-#description     :This script will logoff the ADC
+﻿#title           :upgrade-url.ps1
+#description     :This script will upgrade the A10 device using a URL
 #author		     :Brandon Marlow
-#date            :10302015
-#version         :1.00
-#usage		     :logoff.ps1 [adc IP]
+#date            :07/11/17
+#version         :2.10
+#usage		     :upgrade-url.ps1 -device [device] -detailed -reboot
 #==============================================================================
+
+#get the params
+
+
+
+Param(
+   [Parameter(Mandatory=$True,Position=1)]
+   [string[]]$device
+
+)
+
 
 Add-Type @"
     using System;
@@ -36,12 +47,24 @@ Add-Type @"
 [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12;
 
 
-#grab the IP of the ADC
-$adc = $args[0]
 
-#verify that all the arguments are not null (we aren't doing any deep checking here, just making sure the params have values)
-if(-not($adc)) { Throw "You must specify an ADC as the first argument" }
 
-#logoff
-Invoke-WebRequest -Uri https://$adc/axapi/v3/logoff -ContentType application/json -Headers $headers -Method Post | Out-Null
+#authenticate
+. ".\auth.ps1" $device
 
+$apipath = '/axapi/v3/system/upgrade-status/oper'
+
+#send the request to create the real server
+$output = Invoke-WebRequest -Uri https://$adc$apipath -ContentType application/json -Headers $headers -Method Get -TimeoutSec 10000000
+#write the result of the commands to the console
+
+Write-host "writing output"
+
+Write-Host $output
+
+write-host "writing status code"
+
+Write-Host $output.StatusCode  
+
+#lets go ahead and log off
+. ".\logoff.ps1" $adc

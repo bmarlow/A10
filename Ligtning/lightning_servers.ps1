@@ -143,7 +143,7 @@ If (-not $pass){
 }
 
 #if you don't specify a service use the default-service
-If ($service -eq $null){
+If (-not $service){
     $service = "default-service"
 }
 
