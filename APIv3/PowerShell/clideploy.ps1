@@ -20,7 +20,11 @@ Param(
 
 )
 
+<<<<<<< HEAD
 
+=======
+# Allow the use of self-signed SSL certificates
+>>>>>>> master
 Add-Type @"
     using System;
     using System.Net;
@@ -78,7 +82,7 @@ $apipath = "/axapi/v3/clideploy"
 $body = @"
 {"commandList": $jsoncommandlist}
 "@
-Write-Host $body
+#Write-Host $body
 
 #send the request to create the real server
 $output = Invoke-WebRequest -Uri https://$adc$apipath -Body $body -ContentType application/json -Headers $headers -Method Post
