@@ -85,11 +85,9 @@ $body = @"
 
 
 #authenticate
-<<<<<<< HEAD
+
 $auth = Invoke-RestMethod -Uri https://$adc/axapi/v3/auth -Body $body -ContentType application/json -Method Post
-=======
-$auth = Invoke-RestMethod -Method Post -Uri https://$adc/axapi/v3/auth -Body $body -ContentType application/json 
->>>>>>> master
+
 
 
 #extract the signature
