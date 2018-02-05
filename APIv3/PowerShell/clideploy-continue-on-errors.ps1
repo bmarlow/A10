@@ -51,7 +51,7 @@ Write-Host $body
 #send the request to create the real server
 
 Try{
-            $output = Invoke-WebRequest -Uri $adc$apipath -Body $body -ContentType application/json -Headers $headers -Method Post
+            $output = Invoke-WebRequest -Uri https://$adc$apipath -Body $body -ContentType application/json -Headers $headers -Method Post
             Write-Output $output.RawContent
 }
         Catch{

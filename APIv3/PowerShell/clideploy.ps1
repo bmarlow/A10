@@ -20,11 +20,8 @@ Param(
 
 )
 
-<<<<<<< HEAD
-
-=======
 # Allow the use of self-signed SSL certificates
->>>>>>> master
+
 Add-Type @"
     using System;
     using System.Net;
